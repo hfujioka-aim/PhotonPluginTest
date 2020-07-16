@@ -1,4 +1,4 @@
-﻿using Photon.Pun;
+using Photon.Pun;
 
 using UnityEngine;
 
@@ -11,7 +11,7 @@ public class PlayerAnimatorManager: MonoBehaviourPun
     #region MonoBehaviour Callbacks
 
     private Animator animator;
-    
+
     void Start()
     {
         this.animator = this.GetComponent<Animator>();
@@ -22,7 +22,7 @@ public class PlayerAnimatorManager: MonoBehaviourPun
 
     void Update()
     {
-        if (this.photonView.IsMine == false && PhotonNetwork.IsConnected == true) {
+        if (!this.photonView.IsMine && PhotonNetwork.IsConnected) {
             return;
         }
 
