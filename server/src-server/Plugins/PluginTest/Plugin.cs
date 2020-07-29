@@ -143,11 +143,15 @@ namespace PluginTest
                         break;
                     }
 
+                    if (!this.Master.Skill.TryGetValue(beam, out var skill)) {
+                        break;
+                    }
+
                     this.PluginHost.CreateOneTimeTimer(() => {
                         var hitTarget = this.PrefabHolder.Where(e => e.Key != viewId)
                             .Where(e => {
                                 var target = e.Value.History.Last().Components.OfType<Photon.Pun.PhotonTransformViewEx>().First();
-                                return Collider.IsHit(beam, pos_xz, angle_y, new Vector2(target.Position.X, target.Position.Z));
+                                return Collider.IsHit(skill, pos_xz, angle_y, new Vector2(target.Position.X, target.Position.Z));
                             });
 
                         foreach (var target in hitTarget) {
@@ -158,7 +162,7 @@ namespace PluginTest
                             };
                             this.PluginHost.RaiseEvent(PunEvent.RPC, table, sendParams: new SendParameters { Unreliable = false });
                         }
-                    }, 1000);
+                    }, skill.DelayTime);
 
                     break;
                 }

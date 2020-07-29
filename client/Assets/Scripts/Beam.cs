@@ -3,6 +3,8 @@ using UnityEngine;
 [RequireComponent(typeof(Renderer))]
 public class Beam : MonoBehaviour
 {
+    public int DelayTimeMs = 1000;
+
     [SerializeField]
     public GameObject owner;
 

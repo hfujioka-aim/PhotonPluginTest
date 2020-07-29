@@ -1,0 +1,14 @@
+%YAML 1.2
+---
+
+- SkillID: 1
+  DelayTime: 500
+  Radius: 1.5
+  PositionX: 0.0
+  PositionZ: 2.0
+
+- SkillID: 2
+  DelayTime: 1000
+  Radius: 1.5
+  PositionX: 0.0
+  PositionZ: 0.0

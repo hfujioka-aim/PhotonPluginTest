@@ -223,7 +223,7 @@ public class PlayerManager: MonoBehaviourPunCallbacks, IPunObservable
 
         var beam = this.beams[idx];
         beam.SetActive(true);
-        await Task.Delay(1000, this.cts.Token);
+        await Task.Delay(beam.GetComponent<Beam>().DelayTimeMs, this.cts.Token);
         beam.GetComponent<Beam>().SetActive(true);
         await Task.Delay(250, this.cts.Token);
         beam.SetActive(false);

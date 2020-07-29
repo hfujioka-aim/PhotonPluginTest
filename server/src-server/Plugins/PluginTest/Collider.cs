@@ -1,31 +1,27 @@
 using System;
 using System.Numerics;
 
+using MasterData;
+
 namespace PluginTest
 {
-    static class Collider
+    internal static class Collider
     {
-        public static float PlayerRadius = 0.5f;
-        public static float BeamRadius = 1.5f;
+        public const float PlayerRadius = 0.5f;
 
-        public static float Radius = PlayerRadius + BeamRadius;
-        public static float RadiusSquared = Radius * Radius;
-
-        public static bool IsHit(byte skillId, Vector2 pos_xz, float angle_y, Vector2 target_pos)
+        public static bool IsHit(Skill skill, Vector2 pos_xz, float angle_y, Vector2 target_pos)
         {
-            switch (skillId) {
-                case 1:
-                    var rad = angle_y * Math.PI / 180;
-                    pos_xz.X += 2 * (float)Math.Sin(rad);
-                    pos_xz.Y += 2 * (float)Math.Cos(rad);
-                    return Vector2.DistanceSquared(pos_xz, target_pos) <= RadiusSquared;
+            var radius = PlayerRadius + skill.Radius;
+            var radiusSquared = radius * radius;
 
-                case 2:
-                    return Vector2.DistanceSquared(pos_xz, target_pos) <= RadiusSquared;
+            var pos = new Vector2(skill.PositionX, skill.PositionZ);
+            var distance = pos.Length();
+            var rad = angle_y * Math.PI / 180;
+            rad += Math.Acos(skill.PositionZ / distance);
+            pos_xz.X += distance * (float)Math.Sin(rad);
+            pos_xz.Y += distance * (float)Math.Cos(rad);
 
-                default:
-                    return true;
-            }
+            return Vector2.DistanceSquared(pos_xz, target_pos) <= radiusSquared;
         }
 
     }
