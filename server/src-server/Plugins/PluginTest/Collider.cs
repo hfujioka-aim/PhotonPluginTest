@@ -15,11 +15,13 @@ namespace PluginTest
             var radiusSquared = radius * radius;
 
             var pos = new Vector2(skill.PositionX, skill.PositionZ);
-            var distance = pos.Length();
-            var rad = angle_y * Math.PI / 180;
-            rad += Math.Acos(skill.PositionZ / distance);
-            pos_xz.X += distance * (float)Math.Sin(rad);
-            pos_xz.Y += distance * (float)Math.Cos(rad);
+            if (pos != Vector2.Zero) {
+                var distance = pos.Length();
+                var rad = angle_y * Math.PI / 180;
+                rad += Math.Acos(skill.PositionZ / distance);
+                pos_xz.X += distance * (float)Math.Sin(rad);
+                pos_xz.Y += distance * (float)Math.Cos(rad);
+            }
 
             return Vector2.DistanceSquared(pos_xz, target_pos) <= radiusSquared;
         }
