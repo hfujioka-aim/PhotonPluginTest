@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>MasterMemory</name>
+    </assembly>
+    <members>
+        <member name="T:MasterMemory.TableInfo">
+            <summary>
+            Diagnostic info of MasterMemory's table.
+            </summary>
+        </member>
+        <member name="M:MasterMemory.Meta.MetaProperty.ToCamelCase(System.String)">
+            <summary>
+            MyProperty -> myProperty
+            </summary>
+        </member>
+        <member name="M:MasterMemory.Meta.MetaProperty.ToSnakeCase(System.String)">
+            <summary>
+            MyProperty -> my_property
+            </summary>
+        </member>
+    </members>
+</doc>

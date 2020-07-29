@@ -1,4 +1,4 @@
-﻿using Photon.Pun;
+using Photon.Pun;
 using Photon.Realtime;
 
 using UnityEngine;
@@ -32,6 +32,7 @@ public class Launcher : MonoBehaviourPunCallbacks
     public void Awake()
     {
         PhotonNetwork.AutomaticallySyncScene = true;
+        PhotonNetwork.UseRpcMonoBehaviourCache = true;
     }
 
     public void Start()

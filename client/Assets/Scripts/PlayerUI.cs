@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 
 [RequireComponent(typeof(CanvasGroup))]
@@ -14,13 +14,16 @@ public class PlayerUI: MonoBehaviour
     [SerializeField]
     private Slider playerHealthSlider;
 
+    [SerializeField]
+    private Text hitText;
+
     [Tooltip("Pixel offset from the player target")]
     [SerializeField]
     private Vector3 screenOffset = new Vector3(0f, 30f, 0f);
 
     private PlayerManager target;
 
-    float characterControllerHeight = 0f;
+    float characterControllerHeight;
 
     Transform targetTransform;
 
@@ -37,7 +40,10 @@ public class PlayerUI: MonoBehaviour
     void Awake()
     {
         this._canvasGroup = this.GetComponent<CanvasGroup>();
-        this.transform.SetParent(GameObject.Find("Canvas").transform, false);
+        var canvas = GameObject.Find("Canvas");
+        if (canvas) {
+            this.transform.SetParent(canvas.transform, false);
+        }
     }
 
     void Update()
@@ -68,6 +74,10 @@ public class PlayerUI: MonoBehaviour
             this.targetPosition.y += this.characterControllerHeight;
             this.transform.position = Camera.main.WorldToScreenPoint(this.targetPosition) + this.screenOffset;
         }
+
+        if (this.hitText != null) {
+            this.hitText.enabled = this.target?.IsHit ?? false;
+        }
     }
 
     #endregion
@@ -76,25 +86,17 @@ public class PlayerUI: MonoBehaviour
 
     public void SetTarget(PlayerManager _target)
     {
-        if (_target == null) {
-            Debug.LogError("<Color=Red><a>Missing</a></Color> PlayMakerManager target for PlayerUI.SetTarget.", this);
-            return;
-        }
-
         // Cache references for efficiency
         this.target = _target;
 
-        this.targetTransform = _target.transform;
-        this.targetRenderer = _target.GetComponent<Renderer>();
-        var characterController = _target.GetComponent<CharacterController>();
+        this.targetTransform = _target?.transform;
+        this.targetRenderer = _target?.GetComponent<Renderer>();
+        var characterController = _target?.GetComponent<CharacterController>();
 
-        // Get data from the Player that won't change during the lifetime of this Component
-        if (characterController != null) {
-            this.characterControllerHeight = characterController.height;
-        }
+        this.characterControllerHeight = characterController?.height ?? 1.5f;
 
         if (this.playerNameText != null) {
-            this.playerNameText.text = _target.photonView.Owner.NickName;
+            this.playerNameText.text = _target.photonView?.Owner?.NickName;
         }
     }
 

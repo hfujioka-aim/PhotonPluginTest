@@ -1564,7 +1564,7 @@ namespace Photon.Pun
 
 
             // no need to send OnSerialize messages while being alone (these are not buffered anyway)
-#if !PHOTON_DEVELOP
+#if false//!PHOTON_DEVELOP
             if (CurrentRoom.Players.Count <= 1)
             {
                 return;

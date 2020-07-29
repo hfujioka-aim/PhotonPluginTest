@@ -1,0 +1,9 @@
+%YAML 1.2
+---
+
+- Name: "My Robot Kyle Variant"
+  Components:
+  - !PhotonTransformViewEx
+    TypeName: PhotonTransformViewEx
+  - !PlayerManager
+    TypeName: PlayerManager

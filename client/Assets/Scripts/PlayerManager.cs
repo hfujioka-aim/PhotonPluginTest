@@ -1,65 +1,56 @@
-﻿using Photon.Pun;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+
+using Photon.Pun;
 using Photon.Pun.Demo.PunBasics;
+using Photon.Realtime;
 
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-/// <summary>
-/// Player manager.
-/// Handles fire Input and Beams.
-/// </summary>
 [RequireComponent(typeof(PhotonView), typeof(CameraWork))]
 [RequireComponent(typeof(Renderer), typeof(CharacterController))]
 public class PlayerManager: MonoBehaviourPunCallbacks, IPunObservable
 {
-    #region Private Fields
-
     [Tooltip("The local player instance. Use this to know if the local player is represented in the Scene")]
     public static GameObject LocalPlayerInstance;
 
+    public bool ClientHit = false;
+
     [Tooltip("The Beams GameObject to control")]
     [SerializeField]
-    private GameObject beams;
+    private GameObject[] beams;
 
     [Tooltip("The Player's UI GameObject Prefab")]
     [SerializeField]
     private GameObject playerUiPrefab;
 
-    //True, when the user is firing
     bool IsFiring;
-
-    #endregion
 
     [Tooltip("The current Health of our player")]
     public float Health = 1f;
 
-    #region MonoBehaviour CallBacks
+    private CharacterController controller;
 
-    /// <summary>
-    /// MonoBehaviour method called on GameObject by Unity during early initialization phase.
-    /// </summary>
+    public bool IsHit { get; private set; } = false;
+
     void Awake()
     {
-        // #Important
-        // used in GameManager.cs: we keep track of the localPlayer instance to prevent instantiation when levels are synchronized
         if (this.photonView.IsMine) {
             PlayerManager.LocalPlayerInstance = this.gameObject;
         }
 
-        // #Critical
-        // we flag as don't destroy on load so that instance survives level synchronization, thus giving a seamless experience when levels load.
+        this.controller = this.GetComponent<CharacterController>();
+
         DontDestroyOnLoad(this.gameObject);
 
-        if (this.beams == null) {
-            Debug.LogError("<Color=Red><a>Missing</a></Color> Beams Reference.", this);
-        } else {
-            this.beams.SetActive(false);
+        foreach (var b in this.beams) {
+            b.SetActive(false);
         }
     }
 
-    /// <summary>
-    /// 初期化の際にUnityによりGameObjectに呼び出されるMonoBehaviourメソッド
-    /// </summary>
     void Start()
     {
         var _cameraWork = this.GetComponent<CameraWork>();
@@ -81,71 +72,24 @@ public class PlayerManager: MonoBehaviourPunCallbacks, IPunObservable
         }
     }
 
+    private CancellationTokenSource cts { get; set; }
+
+    void OnEnable()
+    {
+        this.cts?.Dispose();
+        this.cts = new CancellationTokenSource();
+    }
+
+    void OnDisable()
+    {
+        this.cts.Cancel();
+    }
+
     void OnDestroy()
     {
+        this.cts?.Dispose();
+        this.cts = null;
         SceneManager.sceneLoaded -= this.CalledOnLevelWasLoaded;
-    }
-
-    /// <summary>
-    /// MonoBehaviour method called on GameObject by Unity on every frame.
-    /// </summary>
-    void Update()
-    {
-        if (this.photonView.IsMine) {
-            this.ProcessInputs();
-        }
-
-        if (this.Health <= 0f) {
-            GameManager.Instance.LeaveRoom();
-        }
-
-        // trigger Beams active state
-        if (this.beams != null && this.IsFiring != this.beams.activeInHierarchy) {
-            this.beams.SetActive(this.IsFiring);
-        }
-    }
-
-    /// <summary>
-    /// MonoBehaviour method called when the Collider 'other' enters the trigger.
-    /// Affect Health of the Player if the collider is a beam
-    /// Note: when jumping and firing at the same, you'll find that the player's own beam intersects with itself
-    /// One could move the collider further away to prevent this or check if the beam belongs to the player.
-    /// </summary>
-    void OnTriggerEnter(Collider other)
-    {
-        if (!this.photonView.IsMine) {
-            return;
-        }
-
-        // We are only interested in Beamers
-        // we should be using tags but for the sake of distribution, let's simply check by name.
-        if (!other.name.Contains("Beam")) {
-            return;
-        }
-
-        this.Health -= 0.1f;
-    }
-
-    /// <summary>
-    /// MonoBehaviour method called once per frame for every Collider 'other' that is touching the trigger.
-    /// We're going to affect health while the beams are touching the player
-    /// </summary>
-    /// <param name="other">Other.</param>
-    void OnTriggerStay(Collider other)
-    {
-        // we dont' do anything if we are not the local player.
-        if (!this.photonView.IsMine) {
-            return;
-        }
-
-        // We are only interested in Beamers
-        // we should be using tags but for the sake of distribution, let's simply check by name.
-        if (!other.name.Contains("Beam")) {
-            return;
-        }
-
-        // we slowly affect health when beam is constantly hitting us, so player has to move to prevent death.
-        this.Health -= 0.1f * Time.deltaTime;
     }
 
     void CalledOnLevelWasLoaded(Scene scene, LoadSceneMode loadingMode)
@@ -153,50 +97,161 @@ public class PlayerManager: MonoBehaviourPunCallbacks, IPunObservable
         var _uiGo = Instantiate(this.playerUiPrefab);
         _uiGo.SendMessage(nameof(PlayerUI.SetTarget), this, SendMessageOptions.RequireReceiver);
 
-        // check if we are outside the Arena and if it's the case, spawn around the center of the arena in a safe zone
         if (!Physics.Raycast(this.transform.position, -Vector3.up, 5f)) {
             this.transform.position = new Vector3(0f, 5f, 0f);
         }
     }
 
-    #endregion
-
-    #region Custom
-
-    /// <summary>
-    /// Processes the inputs. Maintain a flag representing when the user is pressing Fire.
-    /// </summary>
-    void ProcessInputs()
+    void Update()
     {
-        if (Input.GetButtonDown("Fire1")) {
-            if (!this.IsFiring) {
-                this.IsFiring = true;
-            }
+        if (!this.photonView.IsMine && PhotonNetwork.IsConnected) {
+            return;
         }
 
-        if (Input.GetButtonUp("Fire1")) {
-            if (this.IsFiring) {
-                this.IsFiring = false;
-            }
+        if (!this.skillWait) {
+            this.move();
+            this.ProcessInputs();
+        }
+
+#if false
+        if (this.Health <= 0f) {
+            GameManager.Instance.LeaveRoom();
+        }
+#endif
+    }
+
+    private void move()
+    {
+        var dir = Vector3.zero;
+
+        float h = Input.GetAxis("Horizontal");
+        float v = Input.GetAxis("Vertical");
+
+        if (this.controller.isGrounded) {
+            this.transform.Rotate(new Vector3(0, h * 1.2f, 0));
+            dir = this.transform.forward * v * 5;
+        }
+
+        dir.y -= 10;
+        this.controller.Move(dir * Time.deltaTime);
+    }
+
+    void OnTriggerEnter(Collider other)
+    {
+        if (!this.onTrigger(other)) {
+            colliders.Remove(other);
+        }
+
+        // this.Health -= 0.1f;
+    }
+
+    void OnTriggerStay(Collider other)
+    {
+        if (!this.onTrigger(other)) {
+            colliders.Remove(other);
+        }
+
+        // this.Health -= 0.1f * Time.deltaTime;
+    }
+
+    void OnTriggerExit(Collider other)
+    {
+        colliders.Remove(other);
+    }
+
+    private HashSet<Collider> colliders { get; } = new HashSet<Collider>();
+
+    private bool onTrigger(Collider other)
+    {
+        if (!this.ClientHit || this.photonView.IsMine) {
+            return false;
+        }
+
+        if (!other.CompareTag("Beam") || this.beams.Contains(other.gameObject)) {
+            return false;
+        }
+
+        var beam = other.GetComponent<Beam>();
+        if (!beam.IsActive) {
+            return false;
+        }
+        if (!(beam?.owner?.GetComponent<PhotonView>()?.IsMine ?? false)) {
+            return false;
+        }
+
+        if (!colliders.Add(other)) {
+            return true;
+        }
+
+        this.photonView.RPC(nameof(skillHitRPCAsync), RpcTarget.All);
+        return true;
+    }
+
+    void ProcessInputs()
+    {
+        this.CheckBeam(0, "Fire1");
+        this.CheckBeam(1, "Fire2");
+        this.CheckBeam(2, "Fire3");
+    }
+
+    private bool skillWait = false;
+
+    void CheckBeam(byte idx, string buttonName)
+    {
+        if (Input.GetButtonDown(buttonName)) {
+            this.useSkill(idx);
+            // PhotonNetwork.SendAllOutgoingCommands();
         }
     }
 
-    #endregion
+    private void useSkill(byte idx)
+    {
+        this.skillWait = true;
+        var pos = this.transform.position;
+        this.photonView.RPC(nameof(skillRPCAsync), RpcTarget.AllViaServer, idx, new Vector2(pos.x, pos.z), this.transform.eulerAngles.y);
+    }
 
-    #region IPunObservable implementation
+    [PunRPC]
+    private async void skillRPCAsync(byte idx, Vector2 pos_xz, float angle_y, PhotonMessageInfo info)
+    {
+        var pos = this.transform.position;
+        pos.x = pos_xz.x;
+        pos.z = pos_xz.y;
+        var angle = this.transform.eulerAngles;
+        angle.y = angle_y;
+        this.transform.SetPositionAndRotation(pos, Quaternion.Euler(angle));
+
+        var beam = this.beams[idx];
+        beam.SetActive(true);
+        await Task.Delay(1000, this.cts.Token);
+        beam.GetComponent<Beam>().SetActive(true);
+        await Task.Delay(250, this.cts.Token);
+        beam.SetActive(false);
+        this.skillWait = false;
+    }
+
+    [PunRPC]
+    private async void skillHitRPCAsync(PhotonMessageInfo info)
+    {
+        if (this.ClientHit && (info.Sender?.ActorNumber ?? 0) == 0) {
+            return;
+        } else if (!this.ClientHit && (info.Sender?.ActorNumber ?? 0) != 0) {
+            return;
+        }
+
+        this.IsHit = true;
+        await Task.Delay(1000, this.cts.Token);
+        this.IsHit = false;
+    }
 
     public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
     {
         if (stream.IsWriting) {
-            //このプレイヤーを所有しています。データをほかのものに送ります。
             stream.SendNext(this.IsFiring);
             stream.SendNext(this.Health);
         } else {
-            // ネットワークプレイヤー。データ受信
             this.IsFiring = (bool)stream.ReceiveNext();
             this.Health = (float)stream.ReceiveNext();
         }
     }
-
-    #endregion
 }

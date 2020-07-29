@@ -1,0 +1,38 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30225.117
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PluginTest", "PluginTest.csproj", "{9D19C290-81C1-4627-B168-F531A3D0C8A0}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{4D451BE0-3AE5-4EFB-B621-7CC8469B21A1}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\..\..\.editorconfig = ..\..\..\..\.editorconfig
+		..\..\..\deploy\LoadBalancing\GameServer\bin\Photon.LoadBalancing.dll.config = ..\..\..\deploy\LoadBalancing\GameServer\bin\Photon.LoadBalancing.dll.config
+		..\..\..\deploy\Plugins\Plugin\bin\MasterData\PhotonViewPrefabMaster.yaml = ..\..\..\deploy\Plugins\Plugin\bin\MasterData\PhotonViewPrefabMaster.yaml
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MasterData", "..\MasterData\MasterData.csproj", "{356E61D3-8300-4614-994B-978A5A674AE6}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9D19C290-81C1-4627-B168-F531A3D0C8A0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9D19C290-81C1-4627-B168-F531A3D0C8A0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9D19C290-81C1-4627-B168-F531A3D0C8A0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9D19C290-81C1-4627-B168-F531A3D0C8A0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{356E61D3-8300-4614-994B-978A5A674AE6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{356E61D3-8300-4614-994B-978A5A674AE6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{356E61D3-8300-4614-994B-978A5A674AE6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{356E61D3-8300-4614-994B-978A5A674AE6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {EB77E80A-EC06-4EF6-AC7D-ACDFE2AD3FA6}
+	EndGlobalSection
+EndGlobal
