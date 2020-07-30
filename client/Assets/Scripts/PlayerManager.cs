@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -12,12 +13,13 @@ using UnityEngine.SceneManagement;
 
 [RequireComponent(typeof(PhotonView), typeof(CameraWork))]
 [RequireComponent(typeof(Renderer), typeof(CharacterController))]
-public class PlayerManager: MonoBehaviourPunCallbacks, IPunObservable
+public class PlayerManager: MonoBehaviourPun, IPunObservable
 {
     [Tooltip("The local player instance. Use this to know if the local player is represented in the Scene")]
     public static GameObject LocalPlayerInstance;
 
     public bool ClientHit = false;
+    public bool ClientDash = false;
 
     [Tooltip("The Beams GameObject to control")]
     [SerializeField]
@@ -102,8 +104,30 @@ public class PlayerManager: MonoBehaviourPunCallbacks, IPunObservable
         }
     }
 
+    private Vector3 velocity = Vector3.zero;
+    private float dashTime = 0;
+
+    public void ResetDash()
+    {
+        this.DashDest = null;
+        this.skillWait = false;
+        this.beams[0].SetActive(false);
+        this.photonView.Synchronization = ViewSynchronization.UnreliableOnChange;
+    }
+
     void Update()
     {
+        if (this.skillWait && this.DashDest.HasValue) {
+            var pos = this.transform.position;
+            pos.x = this.DashDest.Value.x;
+            pos.z = this.DashDest.Value.y;
+            this.transform.position = Vector3.SmoothDamp(this.transform.position, pos, ref this.velocity, this.dashTime);
+            if ((this.transform.position - pos).sqrMagnitude <= 0.00001f ) {
+                this.ResetDash();
+            }
+            return;
+        }
+
         if (!this.photonView.IsMine && PhotonNetwork.IsConnected) {
             return;
         }
@@ -139,7 +163,7 @@ public class PlayerManager: MonoBehaviourPunCallbacks, IPunObservable
     void OnTriggerEnter(Collider other)
     {
         if (!this.onTrigger(other)) {
-            colliders.Remove(other);
+            this.colliders.Remove(other);
         }
 
         // this.Health -= 0.1f;
@@ -148,7 +172,7 @@ public class PlayerManager: MonoBehaviourPunCallbacks, IPunObservable
     void OnTriggerStay(Collider other)
     {
         if (!this.onTrigger(other)) {
-            colliders.Remove(other);
+            this.colliders.Remove(other);
         }
 
         // this.Health -= 0.1f * Time.deltaTime;
@@ -156,14 +180,14 @@ public class PlayerManager: MonoBehaviourPunCallbacks, IPunObservable
 
     void OnTriggerExit(Collider other)
     {
-        colliders.Remove(other);
+        this.colliders.Remove(other);
     }
 
     private HashSet<Collider> colliders { get; } = new HashSet<Collider>();
 
     private bool onTrigger(Collider other)
     {
-        if (!this.ClientHit || this.photonView.IsMine) {
+        if (!this.ClientHit || this.photonView.IsMine || this.DashDest.HasValue) {
             return false;
         }
 
@@ -179,7 +203,7 @@ public class PlayerManager: MonoBehaviourPunCallbacks, IPunObservable
             return false;
         }
 
-        if (!colliders.Add(other)) {
+        if (!this.colliders.Add(other)) {
             return true;
         }
 
@@ -208,12 +232,17 @@ public class PlayerManager: MonoBehaviourPunCallbacks, IPunObservable
     {
         this.skillWait = true;
         var pos = this.transform.position;
-        this.photonView.RPC(nameof(skillRPCAsync), RpcTarget.AllViaServer, idx, new Vector2(pos.x, pos.z), this.transform.eulerAngles.y);
+        var target = idx == 0 && this.ClientDash ? RpcTarget.All : RpcTarget.AllViaServer;
+        this.photonView.RPC(nameof(skillRPCAsync), target, idx, new Vector2(pos.x, pos.z), this.transform.eulerAngles.y);
     }
+
+    public Vector2? DashDest { get; private set; }
 
     [PunRPC]
     private async void skillRPCAsync(byte idx, Vector2 pos_xz, float angle_y, PhotonMessageInfo info)
     {
+        this.skillWait = true;
+
         var pos = this.transform.position;
         pos.x = pos_xz.x;
         pos.z = pos_xz.y;
@@ -221,12 +250,23 @@ public class PlayerManager: MonoBehaviourPunCallbacks, IPunObservable
         angle.y = angle_y;
         this.transform.SetPositionAndRotation(pos, Quaternion.Euler(angle));
 
-        var beam = this.beams[idx];
+        var beamObj = this.beams[idx];
+        var beam = beamObj.GetComponent<Beam>();
+        beamObj.SetActive(true);
+
+        if (idx == 0) {
+            this.photonView.Synchronization = ViewSynchronization.Off;
+            this.velocity = Vector3.zero;
+            var rad = angle_y * Math.PI / 180;
+            this.DashDest = pos_xz + (beam.DashDistance * new Vector2((float)Math.Sin(rad), (float)Math.Cos(rad)));
+            this.dashTime = beam.DelayTimeMs / 1000f;
+            return;
+        }
+
+        await Task.Delay(beam.DelayTimeMs, this.cts.Token);
         beam.SetActive(true);
-        await Task.Delay(beam.GetComponent<Beam>().DelayTimeMs, this.cts.Token);
-        beam.GetComponent<Beam>().SetActive(true);
         await Task.Delay(250, this.cts.Token);
-        beam.SetActive(false);
+        beamObj.SetActive(false);
         this.skillWait = false;
     }
 

@@ -8,7 +8,7 @@ public class PhotonTransformViewEx: MonoBehaviour, IPunObservable
 {
     private new Transform transform;
     private PhotonView photonView;
-    private CharacterController controller;
+    private PlayerManager pm;
 
     private Vector3 recvPos;
     private Vector3 recvDiffPos;
@@ -23,7 +23,7 @@ public class PhotonTransformViewEx: MonoBehaviour, IPunObservable
     {
         this.transform = base.transform;
         this.photonView = this.GetComponent<PhotonView>();
-        this.controller = this.GetComponent<CharacterController>();
+        this.pm = this.GetComponent<PlayerManager>();
         this.recvPos = this.transform.position;
         this.prevPos = this.recvPos;
         this.estimatePos = this.recvPos;
@@ -32,9 +32,20 @@ public class PhotonTransformViewEx: MonoBehaviour, IPunObservable
         this.rotSpeed = 0;
     }
 
+    private bool lastRecv = true;
+
     public void Update()
     {
         if (this.photonView.IsMine) {
+            return;
+        }
+
+        if (this.pm.DashDest.HasValue) {
+            this.lastRecv = false;
+            return;
+        }
+
+        if (!this.lastRecv) {
             return;
         }
 
@@ -54,6 +65,7 @@ public class PhotonTransformViewEx: MonoBehaviour, IPunObservable
             this.prevPos = pos;
             stream.SendNext(this.transform.eulerAngles.y);
         } else {
+            this.lastRecv = true;
             this.recvPos = (Vector3)stream.ReceiveNext();
             this.recvDiffPos = (Vector3)stream.ReceiveNext();
             var lag = 0; // Mathf.Abs((float)(PhotonNetwork.Time - info.SentServerTime));

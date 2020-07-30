@@ -147,12 +147,20 @@ namespace PluginTest
                         break;
                     }
 
+                    if (beam == 0 && this.PrefabHolder.TryGetValue(viewId, out var pv)) {
+                        pv.IsDash = true;
+                        var rad = angle_y * Math.PI / 180;
+                        pv.DashDestPos = pos_xz + (skill.Radius * new Vector2((float)Math.Sin(rad), (float)Math.Cos(rad)));
+                        this.PluginHost.CreateOneTimeTimer(() => {
+                            pv.IsDash = false;
+                        }, skill.DelayTime);
+
+                        break;
+                    }
+
                     this.PluginHost.CreateOneTimeTimer(() => {
                         var hitTarget = this.PrefabHolder.Where(e => e.Key != viewId)
-                            .Where(e => {
-                                var target = e.Value.History.Last().Components.OfType<Photon.Pun.PhotonTransformViewEx>().First();
-                                return Collider.IsHit(skill, pos_xz, angle_y, new Vector2(target.Position.X, target.Position.Z));
-                            });
+                            .Where(e => !e.Value.IsDash && Collider.IsHit(skill, pos_xz, angle_y, e.Value.GetCurrentPosition()));
 
                         foreach (var target in hitTarget) {
                             var table = new Hashtable {
@@ -180,7 +188,7 @@ namespace PluginTest
                         if (!this.PrefabHolder.TryGetValue(e.ViewID, out var value)) {
                             continue;
                         }
-                        value.History.Add(e);
+                        value.Add(e);
                     }
 
                     break;

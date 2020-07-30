@@ -5,6 +5,8 @@ public class Beam : MonoBehaviour
 {
     public int DelayTimeMs = 1000;
 
+    public float DashDistance = 0;
+
     [SerializeField]
     public GameObject owner;
 
