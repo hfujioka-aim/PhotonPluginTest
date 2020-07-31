@@ -348,6 +348,7 @@ MonoBehaviour:
   playerUiPrefab: {fileID: 4457903456334183425, guid: 03962c5ea5a36f0458e1fa966e388d26,
     type: 3}
   Health: 1
+  HitDelayTimeMs: 200
 --- !u!1 &8507367060132348742
 GameObject:
   m_ObjectHideFlags: 0

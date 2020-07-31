@@ -76,7 +76,7 @@ public class PlayerUI: MonoBehaviour
         }
 
         if (this.hitText != null) {
-            this.hitText.enabled = this.target?.IsHit ?? false;
+            this.hitText.enabled = this.target?.IsHitDisplay ?? false;
         }
     }
 

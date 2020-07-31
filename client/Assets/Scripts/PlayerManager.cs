@@ -36,7 +36,9 @@ public class PlayerManager: MonoBehaviourPun, IPunObservable
 
     private CharacterController controller;
 
-    public bool IsHit { get; private set; } = false;
+    public bool IsHitDisplay { get; private set; } = false;
+
+    private bool isHitStop { get; set; } = false;
 
     void Awake()
     {
@@ -132,7 +134,7 @@ public class PlayerManager: MonoBehaviourPun, IPunObservable
             return;
         }
 
-        if (!this.skillWait) {
+        if (!this.skillWait && !this.isHitStop) {
             this.move();
             this.ProcessInputs();
         }
@@ -270,6 +272,8 @@ public class PlayerManager: MonoBehaviourPun, IPunObservable
         this.skillWait = false;
     }
 
+    public int HitDelayTimeMs = 200;
+
     [PunRPC]
     private async void skillHitRPCAsync(PhotonMessageInfo info)
     {
@@ -279,9 +283,12 @@ public class PlayerManager: MonoBehaviourPun, IPunObservable
             return;
         }
 
-        this.IsHit = true;
+        this.IsHitDisplay = true;
+        this.isHitStop = true;
+        await Task.Delay(this.HitDelayTimeMs, this.cts.Token);
+        this.isHitStop = false;
         await Task.Delay(1000, this.cts.Token);
-        this.IsHit = false;
+        this.IsHitDisplay = false;
     }
 
     public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
