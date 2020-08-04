@@ -153,9 +153,13 @@ public class PlayerManager: MonoBehaviourPun, IPunObservable
         float h = Input.GetAxis("Horizontal");
         float v = Input.GetAxis("Vertical");
 
-        if (this.controller.isGrounded) {
-            this.transform.Rotate(new Vector3(0, h * 1.2f, 0));
-            dir = this.transform.forward * v * 5;
+        if (this.controller.isGrounded && (h != 0 || v != 0)) {
+            var camera = Camera.main.transform.forward;
+            var fwd = new Vector2(camera.x, camera.z).normalized;
+            var hh = -Vector2.Perpendicular(fwd).normalized;
+            var d = (v * fwd) + (h * hh);
+            dir = new Vector3(d.x, 0, d.y) * 10;
+            this.transform.forward = dir.normalized;
         }
 
         dir.y -= 10;

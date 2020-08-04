@@ -323,10 +323,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   distance: 7
-  height: 3
-  centerOffset: {x: 0, y: 4, z: 0}
+  height: 4
+  centerOffset: {x: 0, y: 2, z: 0}
   followOnStart: 0
-  smoothSpeed: 4
+  smoothSpeed: 2
 --- !u!114 &7634122503787229733
 MonoBehaviour:
   m_ObjectHideFlags: 0
