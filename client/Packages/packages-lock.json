@@ -7,6 +7,13 @@
       "dependencies": {},
       "hash": "79cd2c17ba7cd4f11d0cf1fc5477942cc61122c2"
     },
+    "com.neuecc.messagepack": {
+      "version": "https://github.com/neuecc/MessagePack-CSharp.git?path=src/MessagePack.UnityClient/Assets/Scripts/MessagePack",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "d89dbdf389a8a5fd24239aa2f0ed594c7beab786"
+    },
     "com.unity.ide.visualstudio": {
       "version": "2.0.2",
       "depth": 0,
