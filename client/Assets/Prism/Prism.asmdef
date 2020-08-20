@@ -1,0 +1,19 @@
+{
+    "name": "Prism",
+    "references": [
+        "PhotonRealtime",
+        "UniTask",
+        "UniTask.Linq",
+        "MessagePack",
+        "UniRx"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
