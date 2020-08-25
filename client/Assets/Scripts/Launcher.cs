@@ -1,9 +1,28 @@
-using Photon.Pun;
+using System.Threading;
+
+using Cysharp.Threading.Tasks;
+using Cysharp.Threading.Tasks.Linq;
+
+using ExitGames.Client.Photon;
+
 using Photon.Realtime;
+
+using Prism;
+
+using UniRx;
 
 using UnityEngine;
 
-public class Launcher : MonoBehaviourPunCallbacks
+public static class UniRxInit
+{
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    public static void Init()
+    {
+        MainThreadDispatcher.Initialize();
+    }
+}
+
+public class Launcher: MonoBehaviour
 {
     private readonly string gameVersion = "1";
 
@@ -22,17 +41,9 @@ public class Launcher : MonoBehaviourPunCallbacks
     [SerializeField]
     private GameObject progressLabel;
 
-    /// <summary>
-    /// Keep track of the current process. Since connection is asynchronous and is based on several callbacks from Photon,
-    /// we need to keep track of this to properly adjust the behavior when we receive call back by Photon.
-    /// Typically this is used for the OnConnectedToMaster() callback.
-    /// </summary>
-    bool isConnecting;
-
     public void Awake()
     {
-        PhotonNetwork.AutomaticallySyncScene = true;
-        PhotonNetwork.UseRpcMonoBehaviourCache = true;
+        GameObject.DontDestroyOnLoad(this);
     }
 
     public void Start()
@@ -41,55 +52,104 @@ public class Launcher : MonoBehaviourPunCallbacks
         this.controlPanel.SetActive(true);
     }
 
+    private PrismClient client;
+
     public void Connect()
     {
         this.progressLabel.SetActive(true);
         this.controlPanel.SetActive(false);
 
-        if (PhotonNetwork.IsConnected) {
-            PhotonNetwork.JoinRandomRoom();
-        } else {
-            PhotonNetwork.GameVersion = this.gameVersion;
-            this.isConnecting = PhotonNetwork.ConnectUsingSettings();
-        }
-    }
+        Debug.LogFormat("Main: {0}", Thread.CurrentThread.ManagedThreadId);
 
-    public override void OnConnectedToMaster()
-    {
-        Debug.Log("PUN Basics Tutorial/Launcher: OnConnectedToMaster() was called by PUN");
+        this.client = new PrismClient(new AppSettings {
+            AppIdRealtime = "85e244b3-7dca-4b18-a818-f030e0a412cc",
+            AppVersion = Application.version,
+            UseNameServer = false,
+            Server = "127.0.0.1",
+            Port = 5055,
+            Protocol = ConnectionProtocol.Udp,
+        }).AddTo(this);
 
-        if (this.isConnecting) {
-            PhotonNetwork.JoinRandomRoom();
-            this.isConnecting = false;
-        }
-    }
+        UniTask.Create(async () => {
+            Debug.LogFormat("UniTask.Create: {0}", Thread.CurrentThread.ManagedThreadId);
 
-    public override void OnDisconnected(DisconnectCause cause)
-    {
-        this.progressLabel.SetActive(false);
-        this.controlPanel.SetActive(true);
-        Debug.LogWarningFormat("PUN Basics Tutorial/Launcher: OnDisconnected() was called by PUN with reason {0}", cause);
-    }
+            await UniTask.SwitchToThreadPool();
 
-    public override void OnJoinRandomFailed(short returnCode, string message)
-    {
-        Debug.Log("PUN Basics Tutorial/Launcher:OnJoinRandomFailed() was called by PUN. No random room available, so we create one.\nCalling: PhotonNetwork.CreateRoom");
+            Debug.LogFormat("SwitchToThreadPool: {0}", Thread.CurrentThread.ManagedThreadId);
 
-        // #Critical: we failed to join a random room, maybe none exists or they are all full. No worries, we create a new room.
-        PhotonNetwork.CreateRoom(null, new RoomOptions { MaxPlayers = maxPlayersPerRoom });
-    }
+            await this.client.Run(async (client, token) => {
+                Debug.LogFormat("Run: {0}", Thread.CurrentThread.ManagedThreadId);
 
-    public override void OnJoinedRoom()
-    {
-        Debug.Log("PUN Basics Tutorial/Launcher: OnJoinedRoom() called by PUN. Now this client is in a room.");
+                client.OnDisconnected.ObserveOnMainThread().Subscribe(cause => {
+                    Debug.LogFormat("OnDisconnected [{0}]: {1}", Thread.CurrentThread.ManagedThreadId, cause);
+                    this.progressLabel.SetActive(false);
+                    this.controlPanel.SetActive(true);
+                }).AddTo(token);
 
-        // #Critical: We only load if we are the first player, else we rely on `PhotonNetwork.AutomaticallySyncScene` to sync our instance scene.
-        if (PhotonNetwork.CurrentRoom.PlayerCount == 1) {
-            Debug.Log("We load the 'Room for 1' ");
+                // PhotonNetwork.ConnectUsingSettings();
+                if (!client.Connect()) {
+                    Debug.LogError("Connect Error");
+                    return;
+                }
+                await client.OnConnectedToMaster.ToUniTask(true, token);
+                Debug.LogFormat("OnConnectedToMaster [{0}]", Thread.CurrentThread.ManagedThreadId);
 
-            // #Critical
-            // Load the Room Level.
-            PhotonNetwork.LoadLevel("Room for 1");
-        }
+                // PhotonNetwork.JoinRandomRoom();
+                var joinRoomTask = client.OnJoinedRoom.ToUniTask(true, token);
+                var joinTask = UniTask.WhenAny(
+                    joinRoomTask,
+                    client.OnJoinRandomFailed.ToUniTask(true, token)
+                );
+                if (!client.OpJoinRandomRoom(new OpJoinRandomRoomParams {
+                    MatchingType = MatchmakingMode.FillRoom,
+                })) {
+                    Debug.LogError("OpJoinRandomRoom Error");
+                    return;
+                }
+
+                var joinResult = await joinTask;
+
+                if (joinResult.winArgumentIndex == 1) {
+                    var (returnCode, message) = joinResult.result2;
+                    Debug.LogFormat("OnJoinRandomFailed [{0}]: {1} {2}", Thread.CurrentThread.ManagedThreadId, returnCode, message);
+
+                    // PhotonNetwork.CreateRoom(null, new RoomOptions { MaxPlayers = maxPlayersPerRoom });
+                    var createTask = UniTask.WhenAny(
+                        joinRoomTask,
+                        client.OnCreateRoomFailed.ToUniTask(true, token)
+                    );
+                    if (!client.OpCreateRoom(new EnterRoomParams {
+                        RoomName = null,
+                        RoomOptions = new RoomOptions { MaxPlayers = maxPlayersPerRoom },
+                        Lobby = client.InLobby ? client.CurrentLobby : null,
+                        ExpectedUsers = null
+                    })) {
+                        Debug.LogError("OpCreateRoom Error");
+                        return;
+                    }
+
+                    var createResult = await createTask;
+
+                    if (createResult.winArgumentIndex == 1) {
+                        (returnCode, message) = createResult.result2;
+                        Debug.LogErrorFormat("OnCreateRoomFailed [0]: {1} {2}", Thread.CurrentThread.ManagedThreadId, returnCode, message);
+                        return;
+                    } else if (createResult.winArgumentIndex != 0) {
+                        Debug.LogError("createResult.winArgumentIndex Error");
+                        return;
+                    }
+                } else if (joinResult.winArgumentIndex != 0) {
+                    Debug.LogError("joinResult.winArgumentIndex Error");
+                    return;
+                }
+
+                Debug.LogFormat("OnJoinedRoom [{0}]", Thread.CurrentThread.ManagedThreadId);
+
+                // PhotonNetwork.LoadLevel("Room for 1");
+            });
+
+
+            Debug.LogFormat("ThreadId: {0}", Thread.CurrentThread.ManagedThreadId);
+        }).Forget();
     }
 }
